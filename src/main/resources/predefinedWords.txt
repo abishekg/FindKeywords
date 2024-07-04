@@ -1,0 +1,5 @@
+AI
+Ruby on Rails
+Rails
+open-closed
+FirstName

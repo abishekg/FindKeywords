@@ -75,11 +75,6 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        if (args.length != 2) {
-            System.out.println("Usage: java com.abishekgoutham.Main <inputFilePath> <predefinedWordsFilePath>");
-            return;
-        }
-
         String inputFile = args[0];
         String predefinedWordsFile = args[1];
 
