@@ -4,6 +4,8 @@
 
 This is a small project which finds the keywords present in a file based on the words present in another.
 
+Language: Java
+
 ### How to run the program
 
 1. Create a `predefinedWords.txt` with the list of words you want to search. (Ensure you place them one below the other
@@ -32,7 +34,7 @@ This is a small project which finds the keywords present in a file based on the 
    of words to roughly 10000, I could see it was taking forever. I realized I had to implement multithreading in this in
    order to run them concurrently, and that's where the real challenge started in order to determine how to break down
    the tasks efficiently before I could start with the implementation, but I was glad when it only took roughly 2 and
-   half minutes.
+   half minutes for 10,000 words of length 5.
 
 Thank you so much for this opportunity. The task looked simple in the first go but every iteration through the code over
 and over made me think stuff from a different perspective. 
