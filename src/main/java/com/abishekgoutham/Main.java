@@ -1,7 +1,6 @@
 package com.abishekgoutham;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.time.Duration;
@@ -9,69 +8,85 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.*;
 
 public class Main {
     public static Map<String, String> readPredefinedWords(String predefinedWordsFilePath) {
-        Map<String, String> predefinedWords = new LinkedHashMap<>();
+        Map<String, String> predefinedWordsMap = new LinkedHashMap<>();
 
         try (BufferedReader bufferedReader = new BufferedReader(new FileReader(predefinedWordsFilePath))) {
             String word;
             while ((word = bufferedReader.readLine()) != null) {
-                predefinedWords.put(word.trim().toLowerCase(), word.trim());
+                predefinedWordsMap.put(word.trim().toLowerCase(), word.trim());
             }
-        } catch (FileNotFoundException e) {
-            System.out.println("FileNotFoundException Error reading predefinedWordsFilePath: " + e);
         } catch (IOException e) {
-            System.out.println("IOException Error reading predefinedWordsFilePath: " + e);
+            System.out.println("Error reading predefinedWordsFilePath: " + e);
         }
 
-        return predefinedWords;
+        return predefinedWordsMap;
     }
 
-    public static Map<String, Long> readTextFile(String inputFilePath, Map<String, String> predefinedWords) {
-        Map<String, Long> matches = new HashMap<>();
+    public static Map<String, Long> mergeResults(List<Map<String, Long>> results) {
+        Map<String, Long> mergedMap = new HashMap<>();
 
-        for (String key : predefinedWords.keySet()) {
-            matches.put(predefinedWords.get(key), 0L);
+        for (Map<String, Long> resultMap : results) {
+            for (Map.Entry<String, Long> entry : resultMap.entrySet()) {
+                mergedMap.put(entry.getKey(), mergedMap.getOrDefault(entry.getKey(), 0L) + entry.getValue());
+            }
         }
 
-        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(inputFilePath))) {
-            String line;
-            while ((line = bufferedReader.readLine()) != null) {
+        return mergedMap;
+    }
+
+    public static class FileProcessorCallable implements Callable<Map<String, Long>> {
+        private final List<String> inputLines;
+        private final Map<String, String> predefinedWordsMap;
+
+        public FileProcessorCallable(List<String> inputLines, Map<String, String> predefinedWordsMap) {
+            this.inputLines = inputLines;
+            this.predefinedWordsMap = predefinedWordsMap;
+        }
+
+        @Override
+        public Map<String, Long> call() {
+            Map<String, Long> matchesMap = new HashMap<>();
+            for (String key : predefinedWordsMap.keySet()) {
+                matchesMap.put(predefinedWordsMap.get(key), 0L);
+            }
+
+            for (String line : inputLines) {
                 String[] words = line.split(" ");
                 for (int i = 0; i < words.length; i++) {
-                    String word = words[i].toLowerCase();
-                    for (String key : predefinedWords.keySet()) {
+                    for (String key : predefinedWordsMap.keySet()) {
                         String[] keyWords = key.split(" ");
                         if (doesMatch(words, i, keyWords)) {
-                            String originalWord = predefinedWords.get(key);
-                            matches.put(originalWord, matches.get(originalWord) + 1);
+                            String originalWord = predefinedWordsMap.get(key);
+                            matchesMap.put(originalWord, matchesMap.get(originalWord) + 1);
                         }
                     }
                 }
             }
-        } catch (FileNotFoundException e) {
-            System.out.println("FileNotFoundException Error reading inputFilePath: " + e);
-        } catch (IOException e) {
-            System.out.println("IOException Error reading inputFilePath: " + e);
+
+            return matchesMap;
         }
 
-        return matches;
-    }
+        private boolean doesMatch(String[] words, int idx, String[] phrase) {
+            if (phrase.length == 1) {
+                return words[idx].equalsIgnoreCase(phrase[0]);
+            }
 
-    private static boolean doesMatch(String[] words, int index, String[] phrase) {
-        if (index + phrase.length > words.length) {
-            return false;
-        }
-        for (int i = 0; i < phrase.length; i++) {
-            if (!words[index + i].equalsIgnoreCase(phrase[i])) {
+            if (idx + phrase.length > words.length) {
                 return false;
             }
+
+            for (int i = 0; i < phrase.length; i++) {
+                if (!words[idx + i].equalsIgnoreCase(phrase[i])) {
+                    return false;
+                }
+            }
+            return true;
         }
-        return true;
     }
 
     public static void main(String[] args) {
@@ -80,14 +95,41 @@ public class Main {
 
         Instant startInstant = Instant.now();
 
-        Map<String, String> predefinedWords = readPredefinedWords(predefinedWordsFile);
-        Map<String, Long> matchCounts = readTextFile(inputFile, predefinedWords);
+        Map<String, String> predefinedWordsMap = readPredefinedWords(predefinedWordsFile);
+        List<String> lines = readInputLines(inputFile);
+
+        int numberOfThreads = Runtime.getRuntime().availableProcessors();
+        int linesPerThread = lines.size() / numberOfThreads;
+
+        ExecutorService executor = Executors.newFixedThreadPool(numberOfThreads);
+        List<Future<Map<String, Long>>> futures = new ArrayList<>();
+
+        for (int i = 0; i < numberOfThreads; i++) {
+            int start = i * linesPerThread;
+            int end = (i == numberOfThreads - 1) ? lines.size() : start + linesPerThread;
+            List<String> subList = lines.subList(start, end);
+            FileProcessorCallable task = new FileProcessorCallable(subList, predefinedWordsMap);
+            futures.add(executor.submit(task));
+        }
+
+        executor.shutdown();
+
+        List<Map<String, Long>> results = new ArrayList<>();
+        for (Future<Map<String, Long>> future : futures) {
+            try {
+                results.add(future.get());
+            } catch (InterruptedException | ExecutionException e) {
+                System.out.println("Error in task execution: " + e);
+            }
+        }
+
+        Map<String, Long> matchesMap = mergeResults(results);
 
         System.out.println("----------------------------------------------");
         System.out.printf("%-28s %-15s%n", "Predefined Words", "Match Counts");
         System.out.println("----------------------------------------------");
-        for (String key : predefinedWords.keySet()) {
-            System.out.printf("%-28s %-15d%n", predefinedWords.get(key), matchCounts.get(predefinedWords.get(key)));
+        for (String key : predefinedWordsMap.keySet()) {
+            System.out.printf("%-28s %-15d%n", predefinedWordsMap.get(key), matchesMap.get(predefinedWordsMap.get(key)));
         }
 
         Instant endInstant = Instant.now();
@@ -104,5 +146,18 @@ public class Main {
         System.out.println("Start time       : " + startTime.format(formatter));
         System.out.println("End time         : " + endTime.format(formatter));
         System.out.println("Total Time Taken : " + seconds + " seconds " + milliseconds + " milliseconds");
+    }
+
+    public static List<String> readInputLines(String inputFilePath) {
+        List<String> lines = new ArrayList<>();
+        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(inputFilePath))) {
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                lines.add(line);
+            }
+        } catch (IOException e) {
+            System.out.println("Error reading inputFilePath: " + e);
+        }
+        return lines;
     }
 }
