@@ -21,7 +21,7 @@ public class Main {
                 predefinedWordsMap.put(word.trim().toLowerCase(), word.trim());
             }
         } catch (IOException e) {
-            System.out.println("Error reading predefinedWordsFilePath: " + e);
+            System.out.println("IOException Error reading predefinedWordsFilePath: " + e);
         }
 
         return predefinedWordsMap;
@@ -119,7 +119,7 @@ public class Main {
             try {
                 results.add(future.get());
             } catch (InterruptedException | ExecutionException e) {
-                System.out.println("Error in task execution: " + e);
+                System.out.println("InterruptedException Error | ExecutionException Error in main: " + e);
             }
         }
 
@@ -156,7 +156,7 @@ public class Main {
                 lines.add(line);
             }
         } catch (IOException e) {
-            System.out.println("Error reading inputFilePath: " + e);
+            System.out.println("IOException Error reading readInputLines: " + e);
         }
         return lines;
     }
