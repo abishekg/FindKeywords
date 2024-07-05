@@ -89,6 +89,19 @@ public class Main {
         }
     }
 
+    public static List<String> readInputLines(String inputFilePath) {
+        List<String> lines = new ArrayList<>();
+        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(inputFilePath))) {
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                lines.add(line);
+            }
+        } catch (IOException e) {
+            System.out.println("IOException Error reading readInputLines: " + e);
+        }
+        return lines;
+    }
+
     public static void main(String[] args) {
         String inputFile = args[0];
         String predefinedWordsFile = args[1];
@@ -146,18 +159,5 @@ public class Main {
         System.out.println("Start time       : " + startTime.format(formatter));
         System.out.println("End time         : " + endTime.format(formatter));
         System.out.println("Total Time Taken : " + seconds + " seconds " + milliseconds + " milliseconds");
-    }
-
-    public static List<String> readInputLines(String inputFilePath) {
-        List<String> lines = new ArrayList<>();
-        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(inputFilePath))) {
-            String line;
-            while ((line = bufferedReader.readLine()) != null) {
-                lines.add(line);
-            }
-        } catch (IOException e) {
-            System.out.println("IOException Error reading readInputLines: " + e);
-        }
-        return lines;
     }
 }
